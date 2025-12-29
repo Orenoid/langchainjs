@@ -60,6 +60,22 @@ export interface ChatDeepSeekInput extends ChatOpenAIFields {
  *
  * The Deepseek API is compatible to the OpenAI API with some limitations.
  *
+ * ## Reasoning Content (deepseek-reasoner)
+ *
+ * The `deepseek-reasoner` model provides detailed reasoning about its thought process.
+ * This reasoning content is accessible in two ways:
+ *
+ * 1. **Standard content blocks** (recommended): `message.contentBlocks`
+ *    - Returns an array including `{ type: "reasoning", reasoning: "..." }`
+ *    - Follows LangChain's standard content block pattern
+ *    - Consistent with other reasoning-capable providers (OpenAI, Anthropic)
+ *
+ * 2. **Legacy additional_kwargs**: `message.additional_kwargs.reasoning_content`
+ *    - Direct string access (backward compatible)
+ *
+ * Note: Only the `deepseek-reasoner` model produces reasoning content.
+ * The `deepseek-chat` model does not include reasoning blocks.
+ *
  * Setup:
  * Install `@langchain/deepseek` and set an environment variable named `DEEPSEEK_API_KEY`.
  *
@@ -132,12 +148,40 @@ export interface ChatDeepSeekInput extends ChatOpenAIFields {
  *       "promptTokens": 20,
  *       "totalTokens": 102
  *     },
- *     "finish_reason": "stop"
+ *     "finish_reason": "stop",
+ *     "model_provider": "deepseek"
  *   },
  *   "tool_calls": [],
  *   "invalid_tool_calls": []
  * }
  * ```
+ * </details>
+ *
+ * <br />
+ *
+ * <details>
+ * <summary><strong>Accessing Reasoning Content</strong></summary>
+ *
+ * ```typescript
+ * const llm = new ChatDeepSeek({
+ *   model: "deepseek-reasoner",
+ * });
+ * const result = await llm.invoke("Solve 2+2");
+ *
+ * // Modern approach: Use contentBlocks for standardized access
+ * const reasoningBlocks = result.contentBlocks.filter(
+ *   block => block.type === "reasoning"
+ * );
+ * if (reasoningBlocks.length > 0 && reasoningBlocks[0].type === "reasoning") {
+ *   console.log("Reasoning:", reasoningBlocks[0].reasoning);
+ * }
+ *
+ * // Legacy approach: Access via additional_kwargs (still supported)
+ * console.log("Reasoning:", result.additional_kwargs.reasoning_content);
+ * ```
+ *
+ * Note: Only the `deepseek-reasoner` model produces reasoning content.
+ * The `deepseek-chat` model does not include reasoning blocks.
  * </details>
  *
  * <br />
@@ -460,6 +504,13 @@ export class ChatDeepSeek extends ChatOpenAICompletions<ChatDeepSeekCallOptions>
       defaultRole
     );
     messageChunk.additional_kwargs.reasoning_content = delta.reasoning_content;
+
+    // Set model_provider to enable block translator lookup
+    if (!messageChunk.response_metadata) {
+      messageChunk.response_metadata = {};
+    }
+    messageChunk.response_metadata.model_provider = "deepseek";
+
     return messageChunk;
   }
 
@@ -474,6 +525,13 @@ export class ChatDeepSeek extends ChatOpenAICompletions<ChatDeepSeekCallOptions>
     langChainMessage.additional_kwargs.reasoning_content =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (message as any).reasoning_content;
+
+    // Set model_provider to enable block translator lookup
+    if (!langChainMessage.response_metadata) {
+      langChainMessage.response_metadata = {};
+    }
+    langChainMessage.response_metadata.model_provider = "deepseek";
+
     return langChainMessage;
   }
 
